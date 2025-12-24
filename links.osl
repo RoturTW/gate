@@ -31,26 +31,35 @@ def createLink(string id, string to, string owner) object (
     if fs.Exists(linkPath) (
         return { ok: false, error: "already exists" }
     )
+    if to.len > 2000 (
+        return { ok: false, error: "url is too long, keep under 2000 characters" }
+    )
     object linkData = {
         "to": to,
         "owner": owner,
         "created_at": time.Now().Unix()
         "id": id
     }
+    string resp = ownerAddLink(id, owner)
+    if resp != "" (
+        return { ok: false, error: resp }
+    )
     fs.WriteFile(linkPath, linkData.toStr())
-    ownerAddLink(id, owner)
     return { ok: true, link: linkData }
 )
 
-def deleteLink(string id) string (
+def deleteLink(string id) object (
     string linkPath = "./db/links/" + id + ".json"
     if !fs.Exists(linkPath) (
-        return "link not found"
+        return { ok: false, error: "link not found" }
     )
     string owner = getLink(id).owner
+    string resp = ownerRemoveLink(id, owner)
+    if resp != "" (
+        return { ok: false, error: resp }
+    )
     fs.Remove(linkPath)
-    ownerRemoveLink(id, owner)
-    return ""
+    return { ok: true }
 )
 
 def ownerGetLinks(string owner) array (
@@ -68,6 +77,9 @@ def ownerGetLinks(string owner) array (
 
 def ownerSetLinks(string owner, array links) string (
     string ownerPath = "./db/users/" + owner + ".json"
+    if links.len >= 100 (
+        return "max links reached"
+    )
     fs.WriteFile(ownerPath, links.toStr())
     return ""
 )
@@ -78,8 +90,7 @@ def ownerAddLink(string id, string owner) string (
         return "link already exists"
     )
     void links.append(id)
-    ownerSetLinks(owner, links)
-    return ""
+    return ownerSetLinks(owner, links)
 )
 
 def ownerRemoveLink(string id, string owner) string (
@@ -94,7 +105,6 @@ def ownerRemoveLink(string id, string owner) string (
         )
         void newLinks.append(links[i])
     )
-    ownerSetLinks(owner, newLinks)
-    return ""
+    return ownerSetLinks(owner, newLinks)
 )
     
