@@ -37,7 +37,7 @@ def createLink(string id, string to, string owner) object (
     object linkData = {
         "to": to,
         "owner": owner,
-        "created_at": time.Now().Unix()
+        "created_at": time.Now().Unix(),
         "id": id
     }
     string resp = ownerAddLink(id, owner)
