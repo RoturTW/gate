@@ -31,6 +31,7 @@ async function loadLinks() {
     const del = document.createElement('button');
     del.textContent = 'Delete';
     del.onclick = async () => {
+      if (!confirm('Are you sure you want to delete this link?')) return;
       try {
         await api('/api/link?id=' + encodeURIComponent(link.id), { method: 'DELETE' });
         await loadLinks();
@@ -39,10 +40,24 @@ async function loadLinks() {
       }
     };
 
+    const copy = document.createElement('button');
+    copy.textContent = 'Copy Url';
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.origin + '/' + link.id);
+        copy.textContent = 'Copied!';
+        setTimeout(() => { copy.textContent = 'Copy Url'; }, 2000);
+      } catch (e) {
+        el('error').textContent = e.message;
+      }
+    };
+
     li.appendChild(a);
     li.appendChild(span);
-    li.appendChild(document.createTextNode(' '));
+    li.appendChild(document.createElement('br'));
     li.appendChild(del);
+    li.appendChild(document.createTextNode(' '));
+    li.appendChild(copy);
     list.appendChild(li);
   }
 }
