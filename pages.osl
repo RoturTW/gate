@@ -1,0 +1,128 @@
+
+def handleAuth(*gin.Context c) (
+    string token = c.Query("v")
+    if token == "" (
+        c.JSON(401, { ok: false, error: "missing token" })
+        return
+    )
+    object resp = requests.Get("https://api.rotur.dev/validate?key=rotur-gate&v=" + token)
+
+    if !resp.success (
+        c.JSON(401, { ok: false, error: "failed to validate token" })
+        return
+    )
+
+    object json = resp.body.toStr().JsonParse()
+    if json.error != null (
+        c.JSON(401, { ok: false, error: json.error })
+        return
+    )
+    if !json.valid (
+        c.JSON(401, { ok: false, error: "invalidate token" })
+        return
+    )
+
+    string sessionId = randomString(32)
+    
+    string username = token.split(",")[1]
+    sessions[sessionId] = username
+
+    c.SetCookie("session_id", sessionId, 3600, "/", "", false, true)
+
+    c.JSON(200, { ok: true, token: token })
+)
+
+def handleMyLinks(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    array linkiDs = ownerGetLinks(username)
+    array out = []
+    for i linkiDs.len (
+        void out.append(getLink(linkiDs[i].toStr()).link)
+    )
+    c.JSON(200, out)
+)
+
+def handleCreateLink(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    string id = generateLinkId()
+    string to = c.Query("to")
+
+    string err = validateDestination(to)
+    if err != "" (
+        c.JSON(400, { ok: false, error: err })
+        return
+    )
+    object resp = createLink(id, to, username)
+    if !resp.ok (
+        c.JSON(400, { ok: false, error: resp })
+        return
+    )
+    c.JSON(200, resp.link)
+
+)
+
+def handleDeleteLink(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    string id = c.Query("id")
+    if id == "" (
+        c.JSON(400, { ok: false, error: "missing id" })
+        return
+    )
+    object res = getLink(id)
+    if res.ok != true (
+        c.JSON(404, { ok: false, error: "not found" })
+        return
+    )
+    object link = res.link
+    if link.owner.toStr() != username (
+        c.JSON(403, { ok: false, error: "not authorized" })
+        return
+    )
+    string err = deleteLink(id)
+    if err != "" (
+        c.JSON(400, { ok: false, error: err })
+        return
+    )
+    c.JSON(200, { ok: true })
+)
+
+def handleId(*gin.Context c) (
+    string slug = c.Param("id")
+    if slug == "" (
+        c.String(404, "not found")
+        return
+    )
+
+    if slug.endsWith(".json") (
+        string id = slug.trim(1, -6)
+        if id == "" (
+            c.JSON(404, { ok: false, error: "not found" })
+            return
+        )
+        object res = getLink(id)
+        if !res.ok (
+            c.JSON(404, { ok: false, error: "not found" })
+            return
+        )
+        c.JSON(200, res.link)
+        return
+    )
+
+    object res = getLink(slug)
+    if res.ok != true (
+        c.String(404, "not found")
+        return
+    )
+    object link = res.link
+    c.Redirect(302, link.to.toStr())
+)
+
+def authPage(*gin.Context c) (
+    c.HTML(200, "auth.html", { AuthKey: authKey })
+)
+
+def dashboardPage(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    c.HTML(200, "index.html", { Username: username })
+    return
+)

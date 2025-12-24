@@ -1,0 +1,100 @@
+def getLink(string id) object (
+    string linkPath = "./db/links/" + id + ".json"
+    if !fs.Exists(linkPath) (
+        return { ok: false, error: "not found" }
+    )
+
+    string jsonStr = fs.ReadFile(linkPath)
+    any parsed = jsonStr.JsonParse()
+    if typeof(parsed) != "object" (
+        return { ok: false, error: "invalid" }
+    )
+
+    return { ok: true, link: parsed }
+)
+
+def linkExists(string id) boolean (
+    string linkPath = "./db/links/" + id + ".json"
+    return fs.Exists(linkPath)
+)
+
+def generateLinkId() string (
+    string id = randomString(7)
+    while linkExists(id) (
+        id = randomString(7)
+    )
+    return id
+)
+
+def createLink(string id, string to, string owner) object (
+    string linkPath = "./db/links/" + id + ".json"
+    if fs.Exists(linkPath) (
+        return { ok: false, error: "already exists" }
+    )
+    object linkData = {
+        "to": to,
+        "owner": owner,
+        "created_at": time.Now().Unix()
+        "id": id
+    }
+    fs.WriteFile(linkPath, linkData.toStr())
+    ownerAddLink(id, owner)
+    return { ok: true, link: linkData }
+)
+
+def deleteLink(string id) string (
+    string linkPath = "./db/links/" + id + ".json"
+    if !fs.Exists(linkPath) (
+        return "link not found"
+    )
+    string owner = getLink(id).owner
+    fs.Remove(linkPath)
+    ownerRemoveLink(id, owner)
+    return ""
+)
+
+def ownerGetLinks(string owner) array (
+    string ownerPath = "./db/users/" + owner + ".json"
+    if !fs.Exists(ownerPath) (
+        return []
+    )
+    string jsonStr = fs.ReadFile(ownerPath)
+    any parsed = jsonStr.JsonParse()
+    if typeof(parsed) != "array" (
+        return []
+    )
+    return parsed.assert(array)
+)
+
+def ownerSetLinks(string owner, array links) string (
+    string ownerPath = "./db/users/" + owner + ".json"
+    fs.WriteFile(ownerPath, links.toStr())
+    return ""
+)
+
+def ownerAddLink(string id, string owner) string (
+    array links = ownerGetLinks(owner)
+    if links.contains(id) (
+        return "link already exists"
+    )
+    void links.append(id)
+    ownerSetLinks(owner, links)
+    return ""
+)
+
+def ownerRemoveLink(string id, string owner) string (
+    array links = ownerGetLinks(owner)
+    if !links.contains(id) (
+        return "link not found"
+    )
+    array newLinks = []
+    for i links.len (
+        if links[i] == id (
+            continue
+        )
+        void newLinks.append(links[i])
+    )
+    ownerSetLinks(owner, newLinks)
+    return ""
+)
+    

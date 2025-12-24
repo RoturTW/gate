@@ -1,0 +1,58 @@
+import "osl/fs"
+import "osl/requests"
+
+import "math/rand"
+import "os"
+import "time"
+import "github.com/gin-gonic/gin"
+import "github.com/joho/godotenv as godotenv"
+
+import "./links.osl"
+import "./utils.osl"
+import "./api.osl"
+import "./pages.osl"
+
+object sessions = {}
+
+string authKey = ""
+
+def noCORS(*gin.Context c) (
+    c.Header("Access-Control-Allow-Origin", "*")
+    c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+    c.Header("Access-Control-Allow-Headers", "*")
+    if c.Request.Method == "OPTIONS" (
+        c.AbortWithStatus(204)
+        return
+    )
+    c.Next()
+)
+
+def up(*gin.Context c) (
+    c.String(200, "ok")
+)
+
+def main() (
+    string home = os.Getenv("HOME")
+    godotenv.Overload(home ++ "/Documents/.env")
+    godotenv.Load()
+
+    r := gin.Default()
+    r.Use(noCORS)
+
+    r.LoadHTMLGlob("templates/*")
+    r.Static("/static", "./static")
+
+    r.GET("/", requireSession, dashboardPage)
+    r.GET("/auth", authPage)
+
+    api := r.Group("/api")
+    api.GET("/up", up)
+    api.GET("/auth", handleAuth)
+    api.GET("/links", requireSession, handleMyLinks)
+    api.POST("/link", requireSession, handleCreateLink)
+    api.DELETE("/link", requireSession, handleDeleteLink)
+
+    r.GET("/:id", handleId)
+
+    r.Run(":5606")
+)

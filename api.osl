@@ -1,0 +1,27 @@
+def requireSession(*gin.Context c) (
+    string sessionId = c.Cookie("session_id").toArray()[1].toStr()
+    if sessionId == "" (
+        abortUnauthorized(c)
+        return
+    )
+    if !sessions.contains(sessionId) (
+        abortUnauthorized(c)
+        return
+    )
+    c.Set("username", sessions[sessionId])
+    c.Next()
+)
+
+def handleLinkInfo(*gin.Context c) (
+    string id = c.Param("id")
+    if id == "" (
+        c.JSON(404, { ok: false, error: "not found" })
+        return
+    )
+    object res = getLink(id)
+    if res.ok != true (
+        c.JSON(404, { ok: false, error: "not found" })
+        return
+    )
+    c.JSON(200, res.link)
+)
