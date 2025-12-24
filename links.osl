@@ -13,6 +13,18 @@ def getLink(string id) object (
     return { ok: true, link: parsed }
 )
 
+def addLinkView(string id) string (
+    object link = getLink(id)
+    if !link.ok (
+        return "link not found"
+    )
+    object parsed = link.link
+    parsed.views = parsed.views.toNum() + 1
+    string linkPath = "./db/links/" + id + ".json"
+    fs.WriteFile(linkPath, parsed.toStr())
+    return ""
+)
+
 def linkExists(string id) boolean (
     string linkPath = "./db/links/" + id + ".json"
     return fs.Exists(linkPath)
@@ -38,7 +50,8 @@ def createLink(string id, string to, string owner) object (
         "to": to,
         "owner": owner,
         "created_at": time.Now().Unix(),
-        "id": id
+        "id": id,
+        "views": 0
     }
     string resp = ownerAddLink(id, owner)
     if resp != "" (
@@ -53,7 +66,7 @@ def deleteLink(string id) object (
     if !fs.Exists(linkPath) (
         return { ok: false, error: "link not found" }
     )
-    string owner = getLink(id).owner
+    string owner = getLink(id).link.owner
     string resp = ownerRemoveLink(id, owner)
     if resp != "" (
         return { ok: false, error: resp }

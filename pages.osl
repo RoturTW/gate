@@ -69,7 +69,7 @@ def handleDeleteLink(*gin.Context c) (
         return
     )
     object res = getLink(id)
-    if res.ok != true (
+    if !res.ok (
         c.JSON(404, { ok: false, error: "not found" })
         return
     )
@@ -78,9 +78,9 @@ def handleDeleteLink(*gin.Context c) (
         c.JSON(403, { ok: false, error: "not authorized" })
         return
     )
-    string err = deleteLink(id)
-    if err != "" (
-        c.JSON(400, { ok: false, error: err })
+    object resp = deleteLink(id)
+    if !resp.ok (
+        c.JSON(400, { ok: false, error: resp.error })
         return
     )
     c.JSON(200, { ok: true })
@@ -114,6 +114,8 @@ def handleId(*gin.Context c) (
         return
     )
     object link = res.link
+    
+    addLinkView(slug)
     c.Redirect(302, link.to.toStr())
 )
 

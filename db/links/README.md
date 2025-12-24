@@ -9,6 +9,7 @@ the file content is the link data
     "created_at": "2025-12-24T14:40:13.068184Z",
     "owner": "Mist",
     "to": "https://rotur.dev"
-    "id": "ivrz3u5"
+    "id": "ivrz3u5",
+    "views": 0
 }
 ```

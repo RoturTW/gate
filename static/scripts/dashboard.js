@@ -26,7 +26,7 @@ async function loadLinks() {
     a.target = '_blank';
 
     const span = document.createElement('span');
-    span.textContent = ' -> ' + link.to;
+    span.textContent = ' -> ' + link.to + (link.views ? ` (Clicks: ${link.views})` : '');
 
     const del = document.createElement('button');
     del.textContent = 'Delete';
