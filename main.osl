@@ -18,6 +18,13 @@ string authKey = ""
 
 def noCORS(*gin.Context c) (
     c.Header("Access-Control-Allow-Origin", "*")
+    string origin = c.GetHeader("Origin")
+    if origin != "" (
+        c.Header("Access-Control-Allow-Origin", origin)
+        c.Header("Access-Control-Allow-Credentials", "true")
+        c.Next()
+        return
+    )
     c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
     c.Header("Access-Control-Allow-Headers", "*")
     if c.Request.Method == "OPTIONS" (
