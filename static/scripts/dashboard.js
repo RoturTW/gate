@@ -16,6 +16,7 @@ async function loadLinks() {
   const list = el('links');
   list.innerHTML = '';
 
+  const me = await api('/api/me');
   const links = await api('/api/links');
   for (const link of links) {
     const li = document.createElement('li');
@@ -40,6 +41,29 @@ async function loadLinks() {
       }
     };
 
+    let rename = null;
+    if (me.canRename) {
+      rename = document.createElement('button');
+      rename.textContent = 'Rename';
+      rename.onclick = async () => {
+        const newName = prompt('Enter new name for this link:', link.id);
+        if (!newName || newName === link.id) return;
+
+        try {
+          await api(
+            '/api/link/rename?id=' +
+              encodeURIComponent(link.id) +
+              '&newName=' +
+              encodeURIComponent(newName),
+            { method: 'POST' }
+          );
+          await loadLinks();
+        } catch (e) {
+          el('error').textContent = e.message;
+        }
+      };
+    };
+
     const copy = document.createElement('button');
     copy.textContent = 'Copy Url';
     copy.onclick = async () => {
@@ -56,6 +80,8 @@ async function loadLinks() {
     li.appendChild(span);
     li.appendChild(document.createElement('br'));
     li.appendChild(del);
+    li.appendChild(document.createTextNode(' '));
+    if (rename) li.appendChild(rename);
     li.appendChild(document.createTextNode(' '));
     li.appendChild(copy);
     list.appendChild(li);

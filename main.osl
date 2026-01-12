@@ -13,6 +13,7 @@ import "./api.osl"
 import "./pages.osl"
 
 object sessions = {}
+object userData = {}
 
 string authKey = ""
 
@@ -53,10 +54,12 @@ def main() (
     r.GET("/auth", authPage)
 
     api := r.Group("/api")
+    api.GET("/me", requireSession, handleMe)
     api.GET("/up", up)
     api.GET("/auth", handleAuth)
     api.GET("/links", requireSession, handleMyLinks)
     api.POST("/link", requireSession, handleCreateLink)
+    api.POST("/link/rename", requireSession, handleRenameLink)
     api.DELETE("/link", requireSession, handleDeleteLink)
 
     r.GET("/:id", handleId)

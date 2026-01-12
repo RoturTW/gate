@@ -61,6 +61,28 @@ def createLink(string id, string to, string owner) object (
     return { ok: true, link: linkData }
 )
 
+def renameLink(string id, string newName) object (
+    string linkPath = "./db/links/" + id + ".json"
+    string newLinkPath = "./db/links/" + newName + ".json"
+    if !fs.Exists(linkPath) (
+        return { ok: false, error: "link not found" }
+    )
+    if fs.Exists(newLinkPath) (
+        return { ok: false, error: "link with that name already exists" }
+    )
+    object link = getLink(id).link
+    string owner = link.owner
+    string resp = ownerRenameLink(id, newName, owner)
+    if resp != "" (
+        return { ok: false, error: resp }
+    )
+    
+    link.id = newName
+    fs.WriteFile(newLinkPath, link.toStr())
+    fs.Remove(linkPath)
+    return { ok: true }
+)
+
 def deleteLink(string id) object (
     string linkPath = "./db/links/" + id + ".json"
     if !fs.Exists(linkPath) (
@@ -103,6 +125,27 @@ def ownerAddLink(string id, string owner) string (
         return "link already exists"
     )
     void links.append(id)
+    return ownerSetLinks(owner, links)
+)
+
+def ownerRenameLink(string id, string newName, string owner) string (
+    object user = userData[owner.toLower()]
+    string subscription = user.subscription.toStr().toLower()
+
+    if subscription == "free" or subscription == "lite" (
+        return "link rename not allowed for your subscription"
+    )
+
+    array links = ownerGetLinks(owner)
+    if !links.contains(id) (
+        return "link not found"
+    )
+    for i links.len (
+        if links[i] == id (
+            links[i] = newName
+            break
+        )
+    )
     return ownerSetLinks(owner, links)
 )
 

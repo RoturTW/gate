@@ -27,9 +27,34 @@ def handleAuth(*gin.Context c) (
     string username = token.split(",")[1]
     sessions[sessionId] = username
 
+    object resp_profile = requests.Get("https://api.rotur.dev/profile?name=" + username)
+    if !resp_profile.success (
+        c.JSON(401, { ok: false, error: "failed to fetch profile" })
+        return
+    )
+    object profile = resp_profile.body.toStr().JsonParse()
+    if profile.error != null (
+        c.JSON(401, { ok: false, error: profile.error })
+        return
+    )
+    userData[username.toLower()] = profile
+
     c.SetCookie("session_id", sessionId, 3600, "/", "", false, true)
 
     c.JSON(200, { ok: true, token: token })
+)
+
+def handleMe(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    object me = userData[username.toLower()]
+    object resp = {
+        "username": username,
+        "canRename": false
+    }
+
+    string subscription = me.subscription.toStr().toLower()
+    resp.canRename = (subscription == "free" or subscription == "lite") == false
+    c.JSON(200, resp)
 )
 
 def handleMyLinks(*gin.Context c) (
@@ -58,7 +83,6 @@ def handleCreateLink(*gin.Context c) (
         return
     )
     c.JSON(200, resp.link)
-
 )
 
 def handleDeleteLink(*gin.Context c) (
@@ -79,6 +103,43 @@ def handleDeleteLink(*gin.Context c) (
         return
     )
     object resp = deleteLink(id)
+    if !resp.ok (
+        c.JSON(400, { ok: false, error: resp.error })
+        return
+    )
+    c.JSON(200, { ok: true })
+)
+
+def handleRenameLink(*gin.Context c) (
+    string username = c.MustGet("username").toStr()
+    string id = c.Query("id")
+    string newName = c.Query("newName")
+    if id == "" (
+        c.JSON(400, { ok: false, error: "missing id" })
+        return
+    )
+    if newName == "" (
+        c.JSON(400, { ok: false, error: "missing new name" })
+        return
+    )
+
+    if newName.len > 100 (
+        c.JSON(400, { ok: false, error: "new name is too long" })
+        return
+    )
+
+    object res = getLink(id)
+    if !res.ok (
+        c.JSON(404, { ok: false, error: "not found" })
+        return
+    )
+    object link = res.link
+    if link.owner.toStr() != username (
+        c.JSON(403, { ok: false, error: "not authorized" })
+        return
+    )
+
+    object resp = renameLink(id, newName)
     if !resp.ok (
         c.JSON(400, { ok: false, error: resp.error })
         return
@@ -125,6 +186,7 @@ def authPage(*gin.Context c) (
 
 def dashboardPage(*gin.Context c) (
     string username = c.MustGet("username").toStr()
-    c.HTML(200, "index.html", { Username: username })
+    object user = userData[username.toLower()]
+    c.HTML(200, "index.html", { Username: username, Subscription: user.subscription.toStr() })
     return
 )
