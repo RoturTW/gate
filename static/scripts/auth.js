@@ -1,46 +1,77 @@
-
-function getCookie(cname) {
-  let name = cname + "=";
-  let decodedCookie = decodeURIComponent(document.cookie);
-  let ca = decodedCookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) == ' ') {
-      c = c.substring(1);
-    }
-    if (c.indexOf(name) == 0) {
-      return c.substring(name.length, c.length);
-    }
-  }
-  return "";
+function getCookie(name) {
+  return document.cookie
+    .split(';')
+    .map(v => v.trim())
+    .find(v => v.startsWith(name + '='))
+    ?.slice(name.length + 1) || '';
 }
 
-window.onload = async function () {
-  const session = getCookie("session_id");
-  if (session != "") {
-    const urlParams = new URLSearchParams(window.location.search);
-    const next = urlParams.get('next');
-    window.location.href = next || "/";
+function iconsReady() {
+  return new Promise((resolve) => {
+    if (window.lucide?.createIcons) return resolve();
+    const timer = setInterval(() => {
+      if (window.lucide?.createIcons) {
+        clearInterval(timer);
+        resolve();
+      }
+    }, 30);
+  });
+}
+
+function showError(message) {
+  document.getElementById('auth-loader').style.display = 'none';
+  document.getElementById('auth-error-text').textContent = message;
+  document.getElementById('auth-error').style.display = 'flex';
+  lucide.createIcons();
+}
+
+async function hasValidSession() {
+  if (!getCookie('session_id')) return false;
+  try {
+    const res = await fetch('/api/me', { credentials: 'same-origin' });
+    return res.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function begin() {
+  await iconsReady();
+  lucide.createIcons();
+
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next') || '/';
+
+  if (await hasValidSession()) {
+    window.location.href = next;
     return;
   }
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
-  const key = "rotur-gate";
-
-  if (token) {
-    const validator = await fetch("https://api.rotur.dev/generate_validator?key=" + encodeURIComponent(key) + "&auth=" + encodeURIComponent(token))
-      .then(v => v.json())
-      .then(v => v.validator);
-
-    const auth = await fetch("/api/auth?v=" + encodeURIComponent(validator));
-    if (auth.ok) {
-      const next = urlParams.get('next');
-      window.location.href = next || "/";
-      return;
-    }
+  const token = params.get('token');
+  if (!token) {
+    redirectToRotur();
+    return;
   }
 
-  const returnTo = window.location.href;
-  window.location.href = "https://rotur.dev/auth?return_to=".concat(encodeURIComponent(returnTo));
-};
+  try {
+    const key = window.AUTH_KEY || 'rotur-gate';
+    const validatorRes = await fetch(`https://api.rotur.dev/generate_validator?key=${encodeURIComponent(key)}&auth=${encodeURIComponent(token)}`);
+    const validatorData = await validatorRes.json();
+    if (!validatorData.validator) throw new Error('Could not generate validator');
+
+    const authRes = await fetch(`/api/auth?v=${encodeURIComponent(validatorData.validator)}`);
+    if (!authRes.ok) throw new Error('Could not validate rotur login');
+
+    window.location.href = next;
+  } catch (err) {
+    showError(err.message || 'Authentication failed. Redirecting...');
+    setTimeout(redirectToRotur, 1800);
+  }
+}
+
+function redirectToRotur() {
+  const returnTo = window.location.origin + '/auth';
+  window.location.href = `https://rotur.dev/auth?return_to=${encodeURIComponent(returnTo)}`;
+}
+
+document.addEventListener('DOMContentLoaded', begin);

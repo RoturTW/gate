@@ -39,10 +39,21 @@ def handleAuth(*gin.Context c) (
     string username = profile.username
     sessions[sessionId] = username
     userData[username.toLower()] = profile
+    saveSessions()
 
-    c.SetCookie("session_id", sessionId, 3600, "/", "", false, true)
+    c.SetCookie("session_id", sessionId, 2592000, "/", "", false, true)
 
     c.JSON(200, { ok: true, token: token })
+)
+
+def handleLogout(*gin.Context c) (
+    string sessionId = c.Cookie("session_id").toArray()[1].toStr()
+    if sessionId != "" and sessions.contains(sessionId) (
+        sessions.delete(sessionId)
+        saveSessions()
+    )
+    c.SetCookie("session_id", "", -1, "/", "", false, true)
+    c.JSON(200, { ok: true })
 )
 
 def handleMe(*gin.Context c) (
@@ -50,11 +61,11 @@ def handleMe(*gin.Context c) (
     object me = userData[username.toLower()]
     object resp = {
         "username": username,
-        "canRename": false
+        "subscription": me.subscription.toStr(),
+        "canRename": userCanRenameLinks(username),
+        "linkLimit": userLinkLimit(username)
     }
 
-    string subscription = me.subscription.toStr().toLower()
-    resp.canRename = (subscription == "free" or subscription == "lite") == false
     c.JSON(200, resp)
 )
 
@@ -80,7 +91,7 @@ def handleCreateLink(*gin.Context c) (
     )
     object resp = createLink(id, url, username)
     if !resp.ok (
-        c.JSON(400, { ok: false, error: resp })
+        c.JSON(400, { ok: false, error: resp.error })
         return
     )
     c.JSON(200, resp.link)

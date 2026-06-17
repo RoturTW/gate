@@ -1,14 +1,34 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>gate auth</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-  </head>
-  <body>
-    <script>
-      window.AUTH_KEY = "{{.AuthKey}}";
-    </script>
-    <script src="/static/scripts/auth.js" async defer></script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>roturGate — Sign in</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <meta name="theme-color" content="#000000">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <div class="brand auth-brand">
+      <span class="brand-mark"><i data-lucide="route"></i></span>
+      <span>roturGate</span>
+    </div>
+    <h1>Signing you in</h1>
+    <p class="muted">Secure authentication is handled by rotur.</p>
+
+    <div id="auth-loader" class="auth-state">
+      <span class="spinner"></span>
+      <span>Checking your session...</span>
+    </div>
+
+    <div id="auth-error" class="auth-state error-state">
+      <i data-lucide="alert-circle"></i>
+      <span id="auth-error-text">Authentication failed. Redirecting...</span>
+    </div>
+  </main>
+
+  <script>window.AUTH_KEY = "{{.AuthKey}}";</script>
+  <script src="/static/scripts/auth.js"></script>
+</body>
 </html>

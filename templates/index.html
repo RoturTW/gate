@@ -1,111 +1,133 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>gate</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      padding: 24px;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #111;
-      background: #fff;
-      line-height: 1.4;
-    }
-
-    body>div {
-      max-width: 100%;
-    }
-
-    h3 {
-      margin: 24px 0 8px;
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    body>div>div:first-child {
-      margin-bottom: 16px;
-      font-size: 14px;
-    }
-
-    input {
-      padding: 6px 8px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #666;
-    }
-
-    button {
-      padding: 6px 12px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #eaeaea;
-    }
-
-    button:active {
-      background: #ddd;
-    }
-
-    #refresh {
-      margin-bottom: 8px;
-    }
-
-    #error {
-      margin-bottom: 8px;
-      font-size: 13px;
-    }
-
-    ul#links {
-      margin: 0;
-      padding-left: 20px;
-    }
-
-    ul#links li {
-      margin: 4px 0;
-      font-size: 14px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>roturGate</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <meta name="theme-color" content="#000000">
 </head>
 <body>
-  <div>
-    <div>Logged in as: <b>{{.Username}}</b></div>
-    <div>Subscription: {{.Subscription}}</div>
-    <br>
-    <div>
-      <a href="/auth">Log out</a>
-    </div>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="roturGate home">
+        <span class="brand-mark"><i data-lucide="route"></i></span>
+        <span>roturGate</span>
+      </a>
 
-    <h3>Create link</h3>
-    <div>
-      <input id="new-to" placeholder="https://example.com" size="40" />
-      <button id="create">Create</button>
-    </div>
+      <div class="account">
+        <button class="pill" id="profile-btn" type="button">
+          <i data-lucide="activity"></i>
+          <span id="link-count">0 links</span>
+        </button>
+        <button class="user-chip" id="user-menu-btn" type="button">
+          <img id="avatar" src="https://avatars.rotur.dev/default" alt="">
+          <span class="user-copy">
+            <strong id="username">{{.Username}}</strong>
+            <small id="subscription">{{.Subscription}}</small>
+          </span>
+        </button>
+        <div class="menu" id="user-dropdown">
+          <button id="logout-btn" type="button"><i data-lucide="log-out"></i> Logout</button>
+        </div>
+      </div>
+    </header>
 
-    <h3>Your links</h3>
-    <button id="refresh">Refresh</button>
-    <div id="error" style="color: red"></div>
-    <ul id="links"></ul>
+    <section class="page-header">
+      <div>
+        <h1>Links</h1>
+        <p class="lede">Create and manage your redirects.</p>
+      </div>
+      <button id="add-btn" class="btn secondary" type="button"><i data-lucide="plus"></i> Add link</button>
+    </section>
+
+    <section class="toolbar">
+      <h2>Your links</h2>
+      <span id="link-limit" class="limit-label">0 / 20 links</span>
+    </section>
+
+    <section class="filters" aria-label="Filter links">
+      <div class="search-wrap">
+        <i data-lucide="search"></i>
+        <input type="search" id="search-links" placeholder="Search links or destinations">
+      </div>
+      <select id="sort-links" aria-label="Sort links">
+        <option value="created-desc">Newest first</option>
+        <option value="created-asc">Oldest first</option>
+        <option value="views-desc">Most clicks</option>
+        <option value="views-asc">Fewest clicks</option>
+        <option value="id-asc">Name A-Z</option>
+        <option value="id-desc">Name Z-A</option>
+      </select>
+    </section>
+
+    <section id="plan-notice" class="plan-notice" style="display:none;"></section>
+
+    <section id="links-list" class="links-grid" aria-live="polite"></section>
+
+    <section id="empty-state" class="empty-state" style="display:none;">
+      <i data-lucide="link"></i>
+      <h3>No links yet</h3>
+      <p>Create your first short link above.</p>
+    </section>
+  </main>
+
+  <div id="profile-modal" class="modal">
+    <div class="dialog profile-dialog">
+      <button class="icon-btn modal-close" id="close-profile-modal" type="button"><i data-lucide="x"></i></button>
+      <img id="profile-avatar-img" class="profile-avatar" src="https://avatars.rotur.dev/default" alt="">
+      <h2 id="profile-username">{{.Username}}</h2>
+      <p class="muted">roturGate account</p>
+      <div class="stats">
+        <div><span id="profile-subscription">{{.Subscription}}</span><small>Subscription</small></div>
+        <div><span id="total-links">0</span><small>Total links</small></div>
+        <div><span id="total-clicks">0</span><small>Total clicks</small></div>
+      </div>
+      <button id="profile-logout-btn" class="btn danger" type="button"><i data-lucide="log-out"></i> Logout</button>
+    </div>
   </div>
 
-  <script src="/static/scripts/dashboard.js" async defer></script>
-</body>
+  <div id="delete-modal" class="modal">
+    <div class="dialog">
+      <div class="danger-icon"><i data-lucide="trash-2"></i></div>
+      <h2>Delete link?</h2>
+      <p class="muted">This will permanently delete <strong id="delete-link-id"></strong>.</p>
+      <div class="dialog-actions">
+        <button id="cancel-delete" class="btn secondary" type="button">Cancel</button>
+        <button id="confirm-delete" class="btn danger" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
 
+  <div id="rename-modal" class="modal">
+    <div class="dialog">
+      <button class="icon-btn modal-close" id="close-rename-modal" type="button"><i data-lucide="x"></i></button>
+      <h2>Rename link</h2>
+      <p class="muted">Choose a custom slug for this link.</p>
+      <div class="rename-line"><span id="rename-old"></span><i data-lucide="arrow-right"></i><strong id="rename-new"></strong></div>
+      <label class="field-label" for="rename-input">New slug</label>
+      <input type="text" id="rename-input" placeholder="my-link">
+      <div class="dialog-actions">
+        <button id="cancel-rename" class="btn secondary" type="button">Cancel</button>
+        <button id="confirm-rename" class="btn primary" type="button">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="create-modal" class="modal">
+    <div class="dialog">
+      <button class="icon-btn modal-close" id="close-create-modal" type="button"><i data-lucide="x"></i></button>
+      <h2>Create link</h2>
+      <p class="muted">Paste the destination URL.</p>
+      <label class="field-label" for="modal-new-to">Destination</label>
+      <input type="url" id="modal-new-to" placeholder="https://example.com">
+      <div class="dialog-actions">
+        <button id="modal-create" class="btn primary" type="button">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/scripts/dashboard.js"></script>
+</body>
 </html>

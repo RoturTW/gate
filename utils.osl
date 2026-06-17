@@ -1,3 +1,41 @@
+def ensureDb() (
+    if !fs.exists("./db") (
+        fs.mkdirAll("./db")
+    )
+    if !fs.exists("./db/links") (
+        fs.mkdirAll("./db/links")
+    )
+    if !fs.exists("./db/users") (
+        fs.mkdirAll("./db/users")
+    )
+)
+
+def loadSessions() (
+    ensureDb()
+    if !fs.exists("./db/sessions.json") (
+        return
+    )
+    string raw = fs.readFile("./db/sessions.json")
+    object data = json.parse(raw, { type: "object" }) catch (
+        return
+    )
+    if data.sessions != null (
+        sessions = data.sessions
+    )
+    if data.userData != null (
+        userData = data.userData
+    )
+)
+
+def saveSessions() (
+    ensureDb()
+    fs.writeFile("./db/sessions.json", {
+        "sessions": sessions,
+        "userData": userData,
+        "saved_at": time.Now().Unix()
+    }.toStr())
+)
+
 def randomString(int length) string (
     string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     string result = ""

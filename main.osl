@@ -44,6 +44,8 @@ godotenv.Load()
 *gin.Engine r = gin.Default()
 r.Use(noCORS)
 
+loadSessions()
+
 r.LoadHTMLGlob("templates/*")
 r.Static("/static", "./static")
 
@@ -54,6 +56,7 @@ r.GET("/auth", authPage)
 api.GET("/me", requireSession, handleMe)
 api.GET("/up", up)
 api.GET("/auth", handleAuth)
+api.POST("/logout", requireSession, handleLogout)
 api.GET("/links", requireSession, handleMyLinks)
 api.POST("/link", requireSession, handleCreateLink)
 api.POST("/link/rename", requireSession, handleRenameLink)

@@ -108,11 +108,27 @@ def ownerGetLinks(string owner) array (
     return parsed
 )
 
+def userLinkLimit(string owner) int (
+    object user = userData[owner.toLower()]
+    string subscription = user.subscription.toStr().toLower()
+
+    if subscription == "plus" (
+        return 100
+    )
+    if subscription == "pro" or subscription == "max" (
+        return 1000
+    )
+    return 20
+)
+
+def userCanRenameLinks(string owner) boolean (
+    object user = userData[owner.toLower()]
+    string subscription = user.subscription.toStr().toLower()
+    return subscription == "plus" or subscription == "pro" or subscription == "max"
+)
+
 def ownerSetLinks(string owner, array links) string (
     string ownerPath = "./db/users/" + owner + ".json"
-    if links.len >= 100 (
-        return "max links reached"
-    )
     fs.writeFile(ownerPath, links.toStr())
     return ""
 )
@@ -122,15 +138,16 @@ def ownerAddLink(string id, string owner) string (
     if links.contains(id) (
         return "link already exists"
     )
+    int limit = userLinkLimit(owner)
+    if links.len >= limit (
+        return "max links reached for your subscription (" + limit.toStr() + ")"
+    )
     void links.append(id)
     return ownerSetLinks(owner, links)
 )
 
 def ownerRenameLink(string id, string newName, string owner) string (
-    object user = userData[owner.toLower()]
-    string subscription = user.subscription.toStr().toLower()
-
-    if subscription == "free" or subscription == "lite" (
+    if !userCanRenameLinks(owner) (
         return "link rename not allowed for your subscription"
     )
 
