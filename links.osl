@@ -1,12 +1,11 @@
 def getLink(string id) object (
     string linkPath = "./db/links/" + id + ".json"
-    if !fs.Exists(linkPath) (
+    if !fs.exists(linkPath) (
         return { ok: false, error: "not found" }
     )
 
-    string jsonStr = fs.ReadFile(linkPath)
-    any parsed = jsonStr.JsonParse()
-    if typeof(parsed) != "object" (
+    string jsonStr = fs.readFile(linkPath)
+    object parsed = json.parse(jsonStr, { type: "object" }) catch (
         return { ok: false, error: "invalid" }
     )
 
@@ -19,15 +18,15 @@ def addLinkView(string id) string (
         return "link not found"
     )
     object parsed = link.link
-    parsed.views = parsed.views.toNum() + 1
+    parsed.views += 1
     string linkPath = "./db/links/" + id + ".json"
-    fs.WriteFile(linkPath, parsed.toStr())
+    fs.writeFile(linkPath, parsed.toStr())
     return ""
 )
 
 def linkExists(string id) boolean (
     string linkPath = "./db/links/" + id + ".json"
-    return fs.Exists(linkPath)
+    return fs.exists(linkPath)
 )
 
 def generateLinkId() string (
@@ -38,16 +37,16 @@ def generateLinkId() string (
     return id
 )
 
-def createLink(string id, string to, string owner) object (
+def createLink(string id, string url, string owner) object (
     string linkPath = "./db/links/" + id + ".json"
-    if fs.Exists(linkPath) (
+    if fs.exists(linkPath) (
         return { ok: false, error: "already exists" }
     )
-    if to.len > 2000 (
+    if url.len > 2000 (
         return { ok: false, error: "url is too long, keep under 2000 characters" }
     )
     object linkData = {
-        "to": to,
+        "to": url,
         "owner": owner,
         "created_at": time.Now().Unix(),
         "id": id,
@@ -57,17 +56,17 @@ def createLink(string id, string to, string owner) object (
     if resp != "" (
         return { ok: false, error: resp }
     )
-    fs.WriteFile(linkPath, linkData.toStr())
+    fs.writeFile(linkPath, linkData.toStr())
     return { ok: true, link: linkData }
 )
 
 def renameLink(string id, string newName) object (
     string linkPath = "./db/links/" + id + ".json"
     string newLinkPath = "./db/links/" + newName + ".json"
-    if !fs.Exists(linkPath) (
+    if !fs.exists(linkPath) (
         return { ok: false, error: "link not found" }
     )
-    if fs.Exists(newLinkPath) (
+    if fs.exists(newLinkPath) (
         return { ok: false, error: "link with that name already exists" }
     )
     object link = getLink(id).link
@@ -78,14 +77,14 @@ def renameLink(string id, string newName) object (
     )
     
     link.id = newName
-    fs.WriteFile(newLinkPath, link.toStr())
-    fs.Remove(linkPath)
+    fs.writeFile(newLinkPath, link.toStr())
+    fs.remove(linkPath)
     return { ok: true }
 )
 
 def deleteLink(string id) object (
     string linkPath = "./db/links/" + id + ".json"
-    if !fs.Exists(linkPath) (
+    if !fs.exists(linkPath) (
         return { ok: false, error: "link not found" }
     )
     string owner = getLink(id).link.owner
@@ -93,21 +92,20 @@ def deleteLink(string id) object (
     if resp != "" (
         return { ok: false, error: resp }
     )
-    fs.Remove(linkPath)
+    fs.remove(linkPath)
     return { ok: true }
 )
 
 def ownerGetLinks(string owner) array (
     string ownerPath = "./db/users/" + owner + ".json"
-    if !fs.Exists(ownerPath) (
+    if !fs.exists(ownerPath) (
         return []
     )
-    string jsonStr = fs.ReadFile(ownerPath)
-    any parsed = jsonStr.JsonParse()
-    if typeof(parsed) != "array" (
+    string jsonStr = fs.readFile(ownerPath)
+    array parsed = json.parse(jsonStr, {type: "array"}) catch (
         return []
     )
-    return parsed.assert(array)
+    return parsed
 )
 
 def ownerSetLinks(string owner, array links) string (
@@ -115,7 +113,7 @@ def ownerSetLinks(string owner, array links) string (
     if links.len >= 100 (
         return "max links reached"
     )
-    fs.WriteFile(ownerPath, links.toStr())
+    fs.writeFile(ownerPath, links.toStr())
     return ""
 )
 

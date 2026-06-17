@@ -5,38 +5,39 @@ def handleAuth(*gin.Context c) (
         c.JSON(401, { ok: false, error: "missing token" })
         return
     )
-    object resp = requests.Get("https://api.rotur.dev/validate?key=rotur-gate&v=" + token)
+    object resp = requests.get("https://api.rotur.dev/validate?key=rotur-gate&v=" ++ token)
 
     if !resp.success (
         c.JSON(401, { ok: false, error: "failed to validate token" })
         return
     )
 
-    object json = resp.body.toStr().JsonParse()
-    if json.error != null (
-        c.JSON(401, { ok: false, error: json.error })
+    object parsed = json.parse(resp.body, {type: "object"}).unwrapAs(object)
+    if parsed.error != null (
+        c.JSON(401, { ok: false, error: parsed.error })
         return
     )
-    if !json.valid (
+    if !parsed.valid (
         c.JSON(401, { ok: false, error: "invalidate token" })
         return
     )
 
     string sessionId = randomString(32)
     
-    string username = token.split(",")[1]
-    sessions[sessionId] = username
+    string userid = token.split(",")[1]
 
-    object resp_profile = requests.Get("https://api.rotur.dev/profile?name=" + username)
+    object resp_profile = requests.get("https://api.rotur.dev/profile?id=" + userid)
     if !resp_profile.success (
         c.JSON(401, { ok: false, error: "failed to fetch profile" })
         return
     )
-    object profile = resp_profile.body.toStr().JsonParse()
+    object profile = json.parse(resp_profile.body, {type: "object"}).unwrapAs(object)
     if profile.error != null (
         c.JSON(401, { ok: false, error: profile.error })
         return
     )
+    string username = profile.username
+    sessions[sessionId] = username
     userData[username.toLower()] = profile
 
     c.SetCookie("session_id", sessionId, 3600, "/", "", false, true)
@@ -70,14 +71,14 @@ def handleMyLinks(*gin.Context c) (
 def handleCreateLink(*gin.Context c) (
     string username = c.MustGet("username").toStr()
     string id = generateLinkId()
-    string to = c.Query("to")
+    string url = c.Query("to")
 
-    string err = validateDestination(to)
+    string err = validateDestination(url)
     if err != "" (
         c.JSON(400, { ok: false, error: err })
         return
     )
-    object resp = createLink(id, to, username)
+    object resp = createLink(id, url, username)
     if !resp.ok (
         c.JSON(400, { ok: false, error: resp })
         return
@@ -188,5 +189,4 @@ def dashboardPage(*gin.Context c) (
     string username = c.MustGet("username").toStr()
     object user = userData[username.toLower()]
     c.HTML(200, "index.html", { Username: username, Subscription: user.subscription.toStr() })
-    return
 )

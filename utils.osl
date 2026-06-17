@@ -2,7 +2,7 @@ def randomString(int length) string (
     string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     string result = ""
     for i length (
-        result = result ++ chars[rand.Intn(chars.len) + 1].toStr()
+        result ++= chars[random(1, chars.len)].toStr()
     )
     return result
 )
@@ -32,11 +32,11 @@ def handleRedirect(*gin.Context c) (
     c.Redirect(302, link.to.toStr())
 )
 
-def validateDestination(string to) string (
-    if to == "" (
+def validateDestination(string url) string (
+    if url == "" (
         return "missing destination"
     )
-    if !to.startsWith("https://") and !to.startsWith("http://") (
+    if !url.startsWith("https://") and !url.startsWith("http://") (
         return "destination must start with http:// or https://"
     )
     return ""
