@@ -45,29 +45,29 @@ def randomString(int length) string (
     return result
 )
 
-def abortUnauthorized(*gin.Context c) (
-    string path = c.Request.URL.Path
+def abortUnauthorized(*serve.Context c) (
+    string path = c.request.URL.Path
     if path.startsWith("/api") (
-        c.JSON(401, { ok: false, error: "not authenticated" })
+        c.json(401, { ok: false, error: "not authenticated" })
     ) else (
-        c.Redirect(302, "/auth")
+        c.redirect(302, "/auth")
     )
-    c.Abort()
+    c.abort()
 )
 
-def handleRedirect(*gin.Context c) (
-    string id = c.Param("id")
+def handleRedirect(*serve.Context c) (
+    string id = c.param("id")
     if id == "" (
-        c.String(404, "not found")
+        c.string(404, "not found")
         return
     )
     object res = getLink(id)
     if res.ok != true (
-        c.String(404, "not found")
+        c.string(404, "not found")
         return
     )
     object link = res.link
-    c.Redirect(302, link.to.toStr())
+    c.redirect(302, link.to.toStr())
 )
 
 def validateDestination(string url) string (

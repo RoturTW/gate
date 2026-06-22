@@ -2,8 +2,8 @@ import "osl/fs"
 import "osl/requests"
 import "osl/json"
 
-import "github.com/gin-gonic/gin"
-import "github.com/joho/godotenv as godotenv"
+import "osl/serve"
+import "osl/env"
 
 import "./links.osl"
 import "./utils.osl"
@@ -15,34 +15,17 @@ object userData = {}
 
 string authKey = ""
 
-def noCORS(*gin.Context c) (
-    c.Header("Access-Control-Allow-Origin", "*")
-    string origin = c.GetHeader("Origin")
-    if origin != "" (
-        c.Header("Access-Control-Allow-Origin", origin)
-        c.Header("Access-Control-Allow-Credentials", "true")
-        c.Next()
-        return
-    )
-    c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-    c.Header("Access-Control-Allow-Headers", "*")
-    if c.Request.Method == "OPTIONS" (
-        c.AbortWithStatus(204)
-        return
-    )
-    c.Next()
+def up(*serve.Context c) (
+    c.string(200, "ok")
 )
 
-def up(*gin.Context c) (
-    c.String(200, "ok")
-)
+string home = env.home()
+env.overload(home ++ "/Documents/.env")
+env.load()
 
-string home = os.Getenv("HOME")
-godotenv.Overload(home ++ "/Documents/.env")
-godotenv.Load()
-
-*gin.Engine r = gin.Default()
-r.Use(noCORS)
+*serve.Router r = serve.New()
+r.use(serve.logger())
+r.Use(serve.corsOpen())
 
 loadSessions()
 
@@ -52,7 +35,7 @@ r.Static("/static", "./static")
 r.GET("/", requireSession, dashboardPage)
 r.GET("/auth", authPage)
 
-*gin.RouterGroup api = r.Group("/api")
+*serve.Router api = r.Group("/api")
 api.GET("/me", requireSession, handleMe)
 api.GET("/up", up)
 api.GET("/auth", handleAuth)
@@ -64,4 +47,4 @@ api.DELETE("/link", requireSession, handleDeleteLink)
 
 r.GET("/:id", handleId)
 
-r.Run(":5606")
+r.run(":5606")
