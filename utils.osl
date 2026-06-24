@@ -23,7 +23,10 @@ def loadSessions() (
         sessions = data.sessions
     )
     if data.userData != null (
-        userData = data.userData
+        userData = userData
+    )
+    if data.idToUsername != null (
+        idToUsername = data.idToUsername
     )
 )
 
@@ -32,6 +35,7 @@ def saveSessions() (
     fs.writeFile("./db/sessions.json", {
         "sessions": sessions,
         "userData": userData,
+        "idToUsername": idToUsername,
         "saved_at": time.Now().Unix()
     }.toStr())
 )
@@ -76,6 +80,16 @@ def validateDestination(string url) string (
     )
     if !url.startsWith("https://") and !url.startsWith("http://") (
         return "destination must start with http:// or https://"
+    )
+    return ""
+)
+
+def lookupUsernameById(string userId) string (
+    if userId == "" (
+        return ""
+    )
+    if idToUsername.contains(userId) (
+        return idToUsername[userId].toStr()
     )
     return ""
 )

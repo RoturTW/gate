@@ -8,20 +8,215 @@ def requireSession(*serve.Context c) (
         abortUnauthorized(c)
         return
     )
-    c.set("username", sessions[sessionId])
+    c.set("userid", sessions[sessionId])
     c.next()
 )
 
-def handleLinkInfo(*serve.Context c) (
-    string id = c.param("id")
+def handleAuth(*serve.Context c) (
+    string token = c.query("v")
+    if token == "" (
+        c.json(401, { ok: false, error: "missing token" })
+        return
+    )
+    object resp = requests.get("https://api.rotur.dev/validate?key=rotur-gate&v=" ++ token)
+
+    if !resp.success (
+        c.json(401, { ok: false, error: "failed to validate token" })
+        return
+    )
+
+    object parsed = json.parse(resp.body, {type: "object"}).unwrapAs(object)
+    if parsed.error != null (
+        c.json(401, { ok: false, error: parsed.error })
+        return
+    )
+    if !parsed.valid (
+        c.json(401, { ok: false, error: "invalidate token" })
+        return
+    )
+
+    string sessionId = randomString(32)
+
+    string userid = token.split(",")[1]
+
+    object resp_profile = requests.get("https://api.rotur.dev/profile?id=" + userid)
+    if !resp_profile.success (
+        c.json(401, { ok: false, error: "failed to fetch profile" })
+        return
+    )
+    object profile = json.parse(resp_profile.body, {type: "object"}).unwrapAs(object)
+    if profile.error != null (
+        c.json(401, { ok: false, error: parsed.error })
+        return
+    )
+    string username = profile.username.toStr()
+    sessions[sessionId] = userid
+    userData[userid] = profile
+    idToUsername[userid] = username
+    saveSessions()
+
+    c.setCookie("session_id", sessionId, 2592000, "/", "", false, true)
+
+    c.json(200, { ok: true, token: token })
+)
+
+def handleLogout(*serve.Context c) (
+    string sessionId = c.cookie("session_id").toArray()[1].toStr()
+    if sessionId != "" and sessions.contains(sessionId) (
+        sessions.delete(sessionId)
+        saveSessions()
+    )
+    c.setCookie("session_id", "", -1, "/", "", false, true)
+    c.json(200, { ok: true })
+)
+
+def handleMe(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    string username = lookupUsernameById(userId)
+    object me = userData[userId]
+    object resp = {
+        "id": userId,
+        "username": username,
+        "subscription": me.subscription.toStr(),
+        "canRename": userCanRenameLinks(userId),
+        "linkLimit": userLinkLimit(userId)
+    }
+
+    c.json(200, resp)
+)
+
+def handleMyLinks(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    array linkiDs = ownerGetLinks(userId)
+    array out = []
+    for i linkiDs.len (
+        void out.append(getLink(linkiDs[i].toStr()).link)
+    )
+    c.json(200, out)
+)
+
+def handleCreateLink(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    string id = generateLinkId()
+    string url = c.query("to")
+
+    string err = validateDestination(url)
+    if err != "" (
+        c.json(400, { ok: false, error: err })
+        return
+    )
+    object resp = createLink(id, url, userId)
+    if !resp.ok (
+        c.json(400, { ok: false, error: resp.error })
+        return
+    )
+    c.json(200, resp.link)
+)
+
+def handleDeleteLink(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    string id = c.query("id")
     if id == "" (
-        c.json(404, { ok: false, error: "not found" })
+        c.json(400, { ok: false, error: "missing id" })
         return
     )
     object res = getLink(id)
-    if res.ok != true (
+    if !res.ok (
         c.json(404, { ok: false, error: "not found" })
         return
     )
-    c.json(200, res.link)
+    object link = res.link
+    string ownerId = link.owner_id.toStr()
+    if ownerId == "" or ownerId != userId (
+        c.json(403, { ok: false, error: "not authorized" })
+        return
+    )
+    object resp = deleteLink(id)
+    if !resp.ok (
+        c.json(400, { ok: false, error: resp.error })
+        return
+    )
+    c.json(200, { ok: true })
+)
+
+def handleRenameLink(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    string id = c.query("id")
+    string newName = c.query("newName")
+    if id == "" (
+        c.json(400, { ok: false, error: "missing id" })
+        return
+    )
+    if newName == "" (
+        c.json(400, { ok: false, error: "missing new name" })
+        return
+    )
+
+    if newName.len > 100 (
+        c.json(400, { ok: false, error: "new name is too long" })
+        return
+    )
+
+    object res = getLink(id)
+    if !res.ok (
+        c.json(404, { ok: false, error: "not found" })
+        return
+    )
+    object link = res.link
+    string ownerId = link.owner_id.toStr()
+    if ownerId == "" or ownerId != userId (
+        c.json(403, { ok: false, error: "not authorized" })
+        return
+    )
+
+    object resp = renameLink(id, newName)
+    if !resp.ok (
+        c.json(400, { ok: false, error: resp.error })
+        return
+    )
+    c.json(200, { ok: true })
+)
+
+def handleId(*serve.Context c) (
+    string slug = c.param("id")
+    if slug == "" (
+        c.string(404, "not found")
+        return
+    )
+
+    if slug.endsWith(".json") (
+        string id = slug.trim(1, -6)
+        if id == "" (
+            c.json(404, { ok: false, error: "not found" })
+            return
+        )
+        object res = getLink(id)
+        if !res.ok (
+            c.json(404, { ok: false, error: "not found" })
+            return
+        )
+        c.json(200, res.link)
+        return
+    )
+
+    object res = getLink(slug)
+    if res.ok != true (
+        c.string(404, "not found")
+        return
+    )
+    object link = res.link
+
+    addLinkView(slug)
+    c.redirect(302, link.to.toStr())
+)
+
+def authPage(*serve.Context c) (
+    c.html(200, "auth.html", { AuthKey: authKey })
+)
+
+def dashboardPage(*serve.Context c) (
+    string userId = c.get("userid").toStr()
+    string username = lookupUsernameById(userId)
+    object user = userData[userId]
+    c.html(200, "index.html", { Username: username, UserId: userId, Subscription: user.subscription.toStr() })
 )

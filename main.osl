@@ -8,10 +8,10 @@ import "osl/env"
 import "./links.osl"
 import "./utils.osl"
 import "./api.osl"
-import "./pages.osl"
 
 object sessions = {}
 object userData = {}
+object idToUsername = {}
 
 string authKey = ""
 
@@ -25,7 +25,7 @@ env.load()
 
 *serve.Router r = serve.New()
 r.use(serve.logger())
-r.Use(serve.corsOpen())
+r.use(serve.corsOpen())
 
 loadSessions()
 

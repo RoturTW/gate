@@ -37,7 +37,7 @@ def generateLinkId() string (
     return id
 )
 
-def createLink(string id, string url, string owner) object (
+def createLink(string id, string url, string ownerId) object (
     string linkPath = "./db/links/" + id + ".json"
     if fs.exists(linkPath) (
         return { ok: false, error: "already exists" }
@@ -45,14 +45,16 @@ def createLink(string id, string url, string owner) object (
     if url.len > 2000 (
         return { ok: false, error: "url is too long, keep under 2000 characters" }
     )
+    string ownerName = lookupUsernameById(ownerId)
     object linkData = {
         "to": url,
-        "owner": owner,
+        "owner": ownerName,
+        "owner_id": ownerId,
         "created_at": time.Now().Unix(),
         "id": id,
         "views": 0
     }
-    string resp = ownerAddLink(id, owner)
+    string resp = ownerAddLink(id, ownerId)
     if resp != "" (
         return { ok: false, error: resp }
     )
@@ -70,12 +72,12 @@ def renameLink(string id, string newName) object (
         return { ok: false, error: "link with that name already exists" }
     )
     object link = getLink(id).link
-    string owner = link.owner
-    string resp = ownerRenameLink(id, newName, owner)
+    string ownerId = link.owner_id.toStr()
+    string resp = ownerRenameLink(id, newName, ownerId)
     if resp != "" (
         return { ok: false, error: resp }
     )
-    
+
     link.id = newName
     fs.writeFile(newLinkPath, link.toStr())
     fs.remove(linkPath)
@@ -87,8 +89,9 @@ def deleteLink(string id) object (
     if !fs.exists(linkPath) (
         return { ok: false, error: "link not found" }
     )
-    string owner = getLink(id).link.owner
-    string resp = ownerRemoveLink(id, owner)
+    object link = getLink(id).link
+    string ownerId = link.owner_id.toStr()
+    string resp = ownerRemoveLink(id, ownerId)
     if resp != "" (
         return { ok: false, error: resp }
     )
@@ -96,8 +99,8 @@ def deleteLink(string id) object (
     return { ok: true }
 )
 
-def ownerGetLinks(string owner) array (
-    string ownerPath = "./db/users/" + owner + ".json"
+def ownerGetLinks(string ownerId) array (
+    string ownerPath = "./db/users/" + ownerId + ".json"
     if !fs.exists(ownerPath) (
         return []
     )
@@ -108,8 +111,11 @@ def ownerGetLinks(string owner) array (
     return parsed
 )
 
-def userLinkLimit(string owner) int (
-    object user = userData[owner.toLower()]
+def userLinkLimit(string ownerId) int (
+    object user = userData[ownerId]
+    if user == null (
+        return 20
+    )
     string subscription = user.subscription.toStr().toLower()
 
     if subscription == "plus" (
@@ -121,37 +127,40 @@ def userLinkLimit(string owner) int (
     return 20
 )
 
-def userCanRenameLinks(string owner) boolean (
-    object user = userData[owner.toLower()]
+def userCanRenameLinks(string ownerId) boolean (
+    object user = userData[ownerId]
+    if user == null (
+        return false
+    )
     string subscription = user.subscription.toStr().toLower()
     return subscription == "plus" or subscription == "pro" or subscription == "max"
 )
 
-def ownerSetLinks(string owner, array links) string (
-    string ownerPath = "./db/users/" + owner + ".json"
+def ownerSetLinks(string ownerId, array links) string (
+    string ownerPath = "./db/users/" + ownerId + ".json"
     fs.writeFile(ownerPath, links.toStr())
     return ""
 )
 
-def ownerAddLink(string id, string owner) string (
-    array links = ownerGetLinks(owner)
+def ownerAddLink(string id, string ownerId) string (
+    array links = ownerGetLinks(ownerId)
     if links.contains(id) (
         return "link already exists"
     )
-    int limit = userLinkLimit(owner)
+    int limit = userLinkLimit(ownerId)
     if links.len >= limit (
         return "max links reached for your subscription (" + limit.toStr() + ")"
     )
     void links.append(id)
-    return ownerSetLinks(owner, links)
+    return ownerSetLinks(ownerId, links)
 )
 
-def ownerRenameLink(string id, string newName, string owner) string (
-    if !userCanRenameLinks(owner) (
+def ownerRenameLink(string id, string newName, string ownerId) string (
+    if !userCanRenameLinks(ownerId) (
         return "link rename not allowed for your subscription"
     )
 
-    array links = ownerGetLinks(owner)
+    array links = ownerGetLinks(ownerId)
     if !links.contains(id) (
         return "link not found"
     )
@@ -161,11 +170,11 @@ def ownerRenameLink(string id, string newName, string owner) string (
             break
         )
     )
-    return ownerSetLinks(owner, links)
+    return ownerSetLinks(ownerId, links)
 )
 
-def ownerRemoveLink(string id, string owner) string (
-    array links = ownerGetLinks(owner)
+def ownerRemoveLink(string id, string ownerId) string (
+    array links = ownerGetLinks(ownerId)
     if !links.contains(id) (
         return "link not found"
     )
@@ -176,6 +185,5 @@ def ownerRemoveLink(string id, string owner) string (
         )
         void newLinks.append(links[i])
     )
-    return ownerSetLinks(owner, newLinks)
+    return ownerSetLinks(ownerId, newLinks)
 )
-    
